@@ -121,12 +121,29 @@ RUN mkdir /opt/java && \
     rm -rf /tmp/jdk-8u221-linux-x64.tar.gz && \
     apk del glibc-i18n
 
-FROM JAVA as ANGULAR
+ENV PATH ${JAVA_HOME}/bin:${PATH}
+
+FROM JAVA as GRADLE
+
+ENV GRADLE_VERSION 5.5.1
+ENV GRADLE_HOME /opt/gradle
+ENV PATH ${PATH}:${GRADLE_HOME}/bin
+ENV GRADLE_USER_HOME /gradle
+
+RUN mkdir ${GRADLE_HOME} && \
+    mkdir ${GRADLE_USER_HOME} && \
+    cd ${GRADLE_HOME} && \
+    curl -fsSLO --compressed https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip && \
+    unzip gradle-$GRADLE_VERSION-bin.zip && \
+    rm -f gradle-$GRADLE_VERSION-bin.zip && \
+    ln -s gradle-$GRADLE_VERSION gradle && \
+    echo -ne "- with Gradle $GRADLE_VERSION\n" >> /root/.built
+
+FROM GRADLE as ANGULAR
 
 RUN mkdir /home/workspace
 WORKDIR /home/workspace
 
-ENV PATH ${JAVA_HOME}/bin:${PATH}
 RUN npm install -g @angular/cli && \
     npm install -g cordova && \
     npm install -g ionic && \
