@@ -66,10 +66,41 @@ RUN apk add --no-cache --virtual .build-deps-yarn curl gnupg tar \
   && rm yarn-v$YARN_VERSION.tar.gz.asc yarn-v$YARN_VERSION.tar.gz \
   && apk del .build-deps-yarn
 
-FROM NODE as JAVA
+FROM NODE as ANDROID
+
+ENV ANDROID_HOME /usr/local/android
+ENV ANDROID_VERSION 27
+ENV ANDROID_BUILD_TOOLS_VERSION 27.0.3
+
+RUN mkdir "$ANDROID_HOME" && \
+    mkdir /root/.android && \
+    touch /root/.android/repositories.cfg && \
+    apk add openjdk8 && \
+    apk add curl
+
+WORKDIR $ANDROID_HOME
+RUN curl -fsSLO --compressed https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip && \
+    unzip sdk-tools-linux-4333796.zip && \
+    rm sdk-tools-linux-4333796.zip && \
+    chmod -R +x $ANDROID_HOME/tools/bin
+
+ENV PATH="${PATH}:${ANDROID_HOME}/tools:${ANDROID_HOME}/tools/bin:${ANDROID_HOME}/platform-tools"
+
+RUN  sdkmanager --update
+RUN yes | sdkmanager --licenses
+RUN sdkmanager "platform-tools" --no_https
+RUN sdkmanager "platforms;android-${ANDROID_VERSION}" \
+               "build-tools;${ANDROID_BUILD_TOOLS_VERSION}" \
+               "extras;android;m2repository" \
+               "extras;google;m2repository" \
+               "extras;google;google_play_services" --no_https
+
+RUN apk del openjdk8
+
+FROM ANDROID as JAVA
 
 ENV JAVA_HOME /opt/java/current
-ENV GLIBC_VERSION 2.26-r0
+ENV GLIBC_VERSION 2.29-r0
 
 RUN apk upgrade --update && \
     apk add --update tar libstdc++ curl ca-certificates bash && \
@@ -84,30 +115,13 @@ COPY jdk-8u221-linux-x64.tar.gz /tmp
 RUN mkdir /opt/java && \ 
     tar -zxvf /tmp/jdk-8u221-linux-x64.tar.gz -C /opt/java && \
     ln -s /opt/java/jdk1.8.0_221 /opt/java/current && \
-    apk add paxctl && \
-    cd /opt/java/current/bin && \
-    paxctl -c java && \
-    paxctl -m java && \
-    paxctl -c javac && \
-    paxctl -m javac && \
-    paxctl -c jar && \
-    paxctl -m jar && \
-    rm -rf /opt/java/jdk1.8.0_221/*src.zip \
-           /opt/java/jdk1.8.0_221/lib/missioncontrol \
-           /opt/java/jdk1.8.0_221/lib/visualvm \
-           /opt/java/jdk1.8.0_221/lib/*.jar \
-           /opt/java/jdk1.8.0_221/lib/*.idl \
-           /opt/java/jdk1.8.0_221/lib/ct.sym \
-           /opt/java/jdk1.8.0_221/jre/lib/deploy* \
-           /opt/java/jdk1.8.0_221/jre/lib/resources.* \
-           /opt/java/jdk1.8.0_221/jre/lib/amd64/libjfxwebkit.so
+    ln -sfT /opt/java/current/bin/java /usr/bin/java && \
+    ln -sfT /opt/java/current/bin/javac /usr/bin/javac && \
+    ln -sfT /opt/java/current/bin/jar /usr/bin/jar && \
+    rm -rf /tmp/jdk-8u221-linux-x64.tar.gz && \
+    apk del glibc-i18n
 
-FROM JAVA as PYTHON
-
-RUN apk add python2 && \
-    apk add gradle
-
-FROM PYTHON AS ANGULAR
+FROM JAVA as ANGULAR
 
 RUN mkdir /home/workspace
 WORKDIR /home/workspace
@@ -116,4 +130,5 @@ ENV PATH ${JAVA_HOME}/bin:${PATH}
 RUN npm install -g @angular/cli && \
     npm install -g cordova && \
     npm install -g ionic && \
-    npm install -g node-gyp
+    npm install -g node-gyp && \
+    npm install -g npm-install-peers
