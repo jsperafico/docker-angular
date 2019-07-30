@@ -130,16 +130,19 @@ ENV GRADLE_HOME /opt/gradle
 ENV PATH ${PATH}:${GRADLE_HOME}/bin
 ENV GRADLE_USER_HOME /gradle
 
-RUN mkdir ${GRADLE_HOME} && \
-    mkdir ${GRADLE_USER_HOME} && \
-    cd ${GRADLE_HOME} && \
+WORKDIR /opt
+RUN mkdir ${GRADLE_USER_HOME} && \
     curl -fsSLO --compressed https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip && \
     unzip gradle-$GRADLE_VERSION-bin.zip && \
     rm -f gradle-$GRADLE_VERSION-bin.zip && \
     ln -s gradle-$GRADLE_VERSION gradle && \
-    echo -ne "- with Gradle $GRADLE_VERSION\n" >> /root/.built
+    chmod +x ${GRADLE_HOME}/bin/gradle
 
-FROM GRADLE as ANGULAR
+FROM GRADLE as PYTHON
+
+RUN apk add python2
+
+FROM PYTHON as ANGULAR
 
 RUN mkdir /home/workspace
 WORKDIR /home/workspace
