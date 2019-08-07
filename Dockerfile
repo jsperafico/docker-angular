@@ -111,7 +111,7 @@ RUN apk upgrade --update && \
     echo "export LANG=C.UTF-8" > /etc/profile.d/locale.sh && \
     /usr/glibc-compat/sbin/ldconfig /lib /usr/glibc-compat/lib
 
-COPY ${JDK_LOCATION} /tmp
+ADD ${JDK_LOCATION} /tmp
 RUN mkdir /opt/java && \ 
     tar -zxvf /tmp/jdk-8u221-linux-x64.tar.gz -C /opt/java && \
     ln -s /opt/java/jdk1.8.0_221 /opt/java/current && \
