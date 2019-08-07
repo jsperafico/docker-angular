@@ -1,3 +1,5 @@
+ARG JDK_LOCATION
+
 FROM alpine:edge as NODE
 
 ENV NODE_VERSION 12.7.0
