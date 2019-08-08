@@ -1,5 +1,3 @@
-ARG JDK_LOCATION
-
 FROM alpine:edge as NODE
 
 ENV NODE_VERSION 12.7.0
@@ -100,6 +98,8 @@ RUN sdkmanager "platforms;android-${ANDROID_VERSION}" \
 RUN apk del openjdk8
 
 FROM ANDROID as JAVA
+
+ARG JDK_LOCATION
 
 ENV JAVA_HOME /opt/java/current
 ENV GLIBC_VERSION 2.29-r0
