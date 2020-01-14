@@ -1,7 +1,7 @@
 FROM alpine:edge as NODE
 
-ENV NODE_VERSION 12.7.0
-ENV YARN_VERSION 1.17.3
+ENV NODE_VERSION 13.6.0
+ENV YARN_VERSION 1.21.1
 
 RUN addgroup -g 1000 node \
     && adduser -u 1000 -G node -s /bin/sh -D node \
@@ -16,7 +16,8 @@ RUN addgroup -g 1000 node \
         libgcc \
         linux-headers \
         make \
-        python \
+        python2 \
+        yarn \
   && for key in \
     94AE36675C464D64BAFA68DD7434390BDBE9B9C5 \
     FD3A5288F042B6850C66B31F09FE44734EB7990E \
@@ -48,29 +49,30 @@ RUN addgroup -g 1000 node \
     && rm -Rf "node-v$NODE_VERSION" \
     && rm "node-v$NODE_VERSION.tar.xz" SHASUMS256.txt.asc SHASUMS256.txt
 
-RUN apk add --no-cache --virtual .build-deps-yarn curl gnupg tar \
-  && for key in \
-    6A010C5166006599AA17F08146C2130DFD2497F5 \
-  ; do \
-    gpg --batch --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "$key" || \
-    gpg --batch --keyserver hkp://ipv4.pool.sks-keyservers.net --recv-keys "$key" || \
-    gpg --batch --keyserver hkp://pgp.mit.edu:80 --recv-keys "$key" ; \
-  done \
-  && curl -fsSLO --compressed "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-v$YARN_VERSION.tar.gz" \
-  && curl -fsSLO --compressed "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-v$YARN_VERSION.tar.gz.asc" \
-  && gpg --batch --verify yarn-v$YARN_VERSION.tar.gz.asc yarn-v$YARN_VERSION.tar.gz \
-  && mkdir -p /opt \
-  && tar -xzf yarn-v$YARN_VERSION.tar.gz -C /opt/ \
-  && ln -s /opt/yarn-v$YARN_VERSION/bin/yarn /usr/local/bin/yarn \
-  && ln -s /opt/yarn-v$YARN_VERSION/bin/yarnpkg /usr/local/bin/yarnpkg \
-  && rm yarn-v$YARN_VERSION.tar.gz.asc yarn-v$YARN_VERSION.tar.gz \
-  && apk del .build-deps-yarn
+#RUN apk add --no-cache --virtual .build-deps-yarn curl gnupg tar \
+#  && for key in \
+#    6A010C5166006599AA17F08146C2130DFD2497F5 \
+#  ; do \
+#    gpg --batch --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys "$key" || \
+#    gpg --batch --keyserver hkp://ipv4.pool.sks-keyservers.net --recv-keys "$key" || \
+#    gpg --batch --keyserver hkp://pgp.mit.edu:80 --recv-keys "$key" ; \
+#  done \
+#  && curl -fsSLO --compressed "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-v$YARN_VERSION.tar.gz" \
+#  && curl -fsSLO --compressed "https://yarnpkg.com/downloads/$YARN_VERSION/yarn-v$YARN_VERSION.tar.gz.asc" \
+#  && gpg --batch --verify yarn-v$YARN_VERSION.tar.gz.asc yarn-v$YARN_VERSION.tar.gz \
+#  && mkdir -p /opt \
+#  && tar -xzf yarn-v$YARN_VERSION.tar.gz -C /opt/ \
+#  && ln -s /opt/yarn-v$YARN_VERSION/bin/yarn /usr/local/bin/yarn \
+#  && ln -s /opt/yarn-v$YARN_VERSION/bin/yarnpkg /usr/local/bin/yarnpkg \
+#  && rm yarn-v$YARN_VERSION.tar.gz.asc yarn-v$YARN_VERSION.tar.gz \
+#  && apk del .build-deps-yarn
 
 FROM NODE as ANDROID
 
 ENV ANDROID_HOME /usr/local/android
 ENV ANDROID_VERSION 27
 ENV ANDROID_BUILD_TOOLS_VERSION 27.0.3
+ENV SDK_TOOLS 4333796
 
 RUN mkdir "$ANDROID_HOME" && \
     mkdir /root/.android && \
@@ -79,9 +81,9 @@ RUN mkdir "$ANDROID_HOME" && \
     apk add curl
 
 WORKDIR $ANDROID_HOME
-RUN curl -fsSLO --compressed https://dl.google.com/android/repository/sdk-tools-linux-4333796.zip && \
-    unzip sdk-tools-linux-4333796.zip && \
-    rm sdk-tools-linux-4333796.zip && \
+RUN curl -fsSLO --compressed https://dl.google.com/android/repository/sdk-tools-linux-$SDK_TOOLS.zip && \
+    unzip sdk-tools-linux-$SDK_TOOLS.zip && \
+    rm sdk-tools-linux-$SDK_TOOLS.zip && \
     chmod -R +x $ANDROID_HOME/tools/bin
 
 ENV PATH="${PATH}:${ANDROID_HOME}/tools:${ANDROID_HOME}/tools/bin:${ANDROID_HOME}/platform-tools"
@@ -102,11 +104,11 @@ FROM ANDROID as JAVA
 ARG JDK_LOCATION
 
 ENV JAVA_HOME /opt/java/current
-ENV GLIBC_VERSION 2.29-r0
+ENV GLIBC_VERSION 2.30-r0
 
 RUN apk upgrade --update && \
     apk add --update tar libstdc++ curl ca-certificates bash && \
-    for pkg in glibc-${GLIBC_VERSION} glibc-bin-${GLIBC_VERSION} glibc-i18n-${GLIBC_VERSION}; do curl -sSL https://github.com/andyshinn/alpine-pkg-glibc/releases/download/${GLIBC_VERSION}/${pkg}.apk -o /tmp/${pkg}.apk; done && \
+    for pkg in glibc-${GLIBC_VERSION} glibc-bin-${GLIBC_VERSION} glibc-i18n-${GLIBC_VERSION}; do curl -sSL https://github.com/sgerrand/alpine-pkg-glibc/releases/download/${GLIBC_VERSION}/${pkg}.apk -o /tmp/${pkg}.apk; done && \
     apk add --allow-untrusted /tmp/*.apk && \
     rm -v /tmp/*.apk && \
     ( /usr/glibc-compat/bin/localedef --force --inputfile POSIX --charmap UTF-8 C.UTF-8 || true ) && \
@@ -123,28 +125,26 @@ RUN mkdir /opt/java && \
     rm -rf /tmp/jdk-8u221-linux-x64.tar.gz && \
     apk del glibc-i18n
 
+RUN apk add --no-cache --virtual .build-deps \
+    maven \
+    git
+
 ENV PATH ${JAVA_HOME}/bin:${PATH}
 
 FROM JAVA as GRADLE
 
-ENV GRADLE_VERSION 5.5.1
-ENV GRADLE_HOME /opt/gradle
-ENV PATH ${PATH}:${GRADLE_HOME}/bin
-ENV GRADLE_USER_HOME /gradle
+ENV GRADLE_VERSION 6.0.1
+ENV GRADLE_HOME /opt/gradle-${GRADLE_VERSION}
 
 WORKDIR /opt
-RUN mkdir ${GRADLE_USER_HOME} && \
-    curl -fsSLO --compressed https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip && \
+RUN curl -fsSLO --compressed https://services.gradle.org/distributions/gradle-$GRADLE_VERSION-bin.zip && \
     unzip gradle-$GRADLE_VERSION-bin.zip && \
     rm -f gradle-$GRADLE_VERSION-bin.zip && \
-    ln -s gradle-$GRADLE_VERSION gradle && \
     chmod +x ${GRADLE_HOME}/bin/gradle
 
-FROM GRADLE as PYTHON
+ENV PATH ${PATH}:${GRADLE_HOME}/bin
 
-RUN apk add python2
-
-FROM PYTHON as ANGULAR
+FROM GRADLE as ANGULAR
 
 RUN mkdir /home/workspace
 WORKDIR /home/workspace
@@ -153,4 +153,5 @@ RUN npm install -g @angular/cli && \
     npm install -g cordova && \
     npm install -g ionic && \
     npm install -g node-gyp && \
-    npm install -g npm-install-peers
+    npm install -g npm-install-peers && \
+    npm install -g react
