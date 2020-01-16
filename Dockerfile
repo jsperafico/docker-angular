@@ -17,9 +17,7 @@ RUN addgroup -g 1000 node \
         linux-headers \
         make \
         python2 \
-        yarn \
-        npm \
-        nodejs
+        yarn 
 #  && for key in \
 #    94AE36675C464D64BAFA68DD7434390BDBE9B9C5 \
 #    FD3A5288F042B6850C66B31F09FE44734EB7990E \
@@ -150,6 +148,10 @@ FROM GRADLE as ANGULAR
 
 RUN mkdir /home/workspace
 WORKDIR /home/workspace
+
+RUN apk add --no-cache --virtual .build-deps \
+        npm \
+        nodejs
 
 RUN npm install -g @angular/cli && \
     npm install -g cordova && \
