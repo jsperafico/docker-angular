@@ -10,7 +10,8 @@ Create a shared folder for container `/home/workspace`.
 
 On this image you'll find:
 - Alpine (Edge)
-- Node: (13.6.0)
+- NodeJS: (12.14.1-r0)
+- NPM: (12.14.1-r0)
 - Yarn: (1.21.1-r0)
 - Oracle JDK: (1.8.0_221)
 - Python (2.7.17-r0)
